@@ -1,0 +1,16 @@
+{
+  "name":"dottwatson/lonfo",
+  "description" :"traverse an array by accessing the children and parents of a node",
+  "type": "library",
+  "keywords": ["array","iterator","parent","childs"],
+  "license": "MIT",
+  
+  "autoload": {
+      "psr-4": {
+        "Lonfo\\": "src/"
+      },
+      "files": [
+        "src/functions.php"
+    ]
+  }
+}
