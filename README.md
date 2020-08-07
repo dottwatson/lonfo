@@ -112,6 +112,8 @@ $result = $array
 
 echo $array->get('bar')->get(2)->xpath(); // returns "bar/2"
 
+echo $array->xfind('gender/0')->value(); //returns "Male"
+
 ```
 ## Available methods on array
 
@@ -138,7 +140,8 @@ Here a list on the available methods on `Lonfo\Walker`
 | `set` | Set a pair key => value item in teh array. If exists, will be overwritten | *string* $key, *string* $value | used to add/overwrite items |
 | `append` | Append alle items, passed as arguments, to the array | [$arg1,[$arg2]...] | |
 | `prepend` | Prepends all items, passed as arguments, to the array | [$arg1,[$arg2]...] | |
-| `xpath` | Returns the full data path , included current key  | [*string* $separator = '/'] | |
+| `xpath` | Returns the relative path , included current key  | [*string* $separator = '/'] | |
+| `xfind` | Returns an item or null, based on its xpath relative to current element where search starts | *string* $path,[*string* $separator = '/'] | |
 | `iterable` | Tells if is a valid array (a traversable Walker) | | This is useful for determinate if an end value or array to traverse |
 
 

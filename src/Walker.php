@@ -112,6 +112,37 @@ class Walker{
         return implode($separator,$path);
     }
 
+    /**
+     * Returns an item or null, based on its xpath relative to current element where search starts
+     *
+     * @param string $path
+     * @param string $separator
+     * @return Walker|Value|null
+     */
+    public function xfind(string $path,string $separator = '/'){
+        if(!$path){
+            return null;            
+        }
+
+        $bits   = explode($separator,$path);
+        $item    = $this;
+
+        while(($bit = array_shift($bits)) !== null){
+            $currentItem = $item->get($bit);
+
+            if(count($bits) == 0){
+                return $currentItem;
+            }
+            elseif( $currentItem === null || !$currentItem->iterable() ){
+                return null;
+            }
+
+            $item = $currentItem;
+        }
+
+        return null;
+    }
+
 
     /**
      * Get indexed items in current array
