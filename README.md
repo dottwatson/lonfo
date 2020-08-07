@@ -1,6 +1,15 @@
 # Lonfo
 traverse an array by accessing the children and parents of a node
 
+## Install
+
+In your project 
+```
+composer require dottwatson/lonfo
+```
+
+## Usage
+
 ```php
 
 $data = [
