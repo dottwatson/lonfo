@@ -40,6 +40,11 @@ class Walker{
     protected $currentKeyIndex;
 
 
+    /**
+     * The current key name
+     *
+     * @var string
+     */
     protected $currentKey;
 
 
@@ -58,7 +63,6 @@ class Walker{
         if($this->keys){
             $this->lastKeyIndex = count($this->keys)-1;
         }
-
     }
 
     /**
@@ -71,7 +75,8 @@ class Walker{
         $this->keys             = [];
         $this->lastKeyIndex     = null;
         $this->currentKeyIndex  = null;
-        $this->__construct($this->data,$this->parent);
+        $this->currentKey       = null;
+        $this->__construct($data,$this->parent);
     }
 
 
@@ -79,11 +84,19 @@ class Walker{
      * Returns an item from array by its key
      *
      * @param string|int|float $key
-     * @return Walker|Value
+     * @return Walker|Value|null
      */
     public function get($key){
         $key = (string)$key;
         if($this->has($key)){
+            if(
+                is_object($this->data[$key]) && 
+                (is_a($this->data[$key],static::class) || is_a($this->data[$key],Value::class))
+                ){
+                
+                return $this->data[$key];
+            }
+            
             $clsName = (is_iterable($this->data[$key]))
                 ?static::class
                 :Value::class;
@@ -96,12 +109,11 @@ class Walker{
      * Returns the full data path , included current key 
      *
      * @param string $separator
-     * @return void
+     * @return string
      */
     public function xpath(string $separator = '/'){
         $path    = ($this->key() !== null)?[$this->key()]:[];
         $current = $this;
-        var_dump($current->value());
         while($parent = $current->parent()){
             if($parent->key() !== null){
                 array_unshift($path,$parent->key());
@@ -128,8 +140,25 @@ class Walker{
         $item    = $this;
 
         while(($bit = array_shift($bits)) !== null){
-            $currentItem = $item->get($bit);
+            if($bit == '*'){
+                $empty = [];
+                $childs  = $item->items();
+                $tmp    = new static($empty,$item);
+                foreach($childs as $child){
+                    if($child->iterable()){
+                        $tmp->merge($child->value());
+                    }
+                    else{
+                        $tmp->append($child->value());
+                    }
+                }
 
+                $currentItem = $tmp;
+            }
+            else{
+                $currentItem = $item->get($bit);
+            } 
+            
             if(count($bits) == 0){
                 return $currentItem;
             }
@@ -143,6 +172,24 @@ class Walker{
         return null;
     }
 
+    /**
+     * Merge an array or a Waker object into current item
+     *
+     * @param array|Walker
+     * @return self
+     */
+    public function merge($data){
+        if(is_object($data) && is_a($data,static::class)){
+            $data = $data->value();
+        }
+        elseif(!is_array($data)){
+            $data = [$data];
+        }
+
+        $finalData = array_merge_recursive($this->data,$data);
+        $this->reload($finalData);
+        return $this;
+    }
 
     /**
      * Get indexed items in current array
@@ -177,7 +224,11 @@ class Walker{
         return $this->keys;
     }
 
-
+    /**
+     * Returns the primitive item value
+     *
+     * @return mixed
+     */
     public function value(){
         return $this->data;
     }
@@ -198,7 +249,7 @@ class Walker{
      * @return boolean
      */
     public function has(string $key){
-        return in_array($key,$this->keys);
+        return in_array($key,$this->keys,true);
     }
 
     /**
@@ -305,7 +356,7 @@ class Walker{
             return null;
         }
     
-        $item = $this->first()->all();       
+        $item = $this->first()->value();       
 
         array_shift($this->data);
 
@@ -326,7 +377,7 @@ class Walker{
             return null;
         }
     
-        $item = $this->last()->all();       
+        $item = $this->last()->value();       
 
         array_pop($this->data);
 
