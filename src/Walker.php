@@ -87,23 +87,52 @@ class Walker{
      * @return Walker|Value|null
      */
     public function get($key){
-        $key = (string)$key;
-        if($this->has($key)){
+        $key        = (string)$key;
+        $keyInfo    = $this->parseKey($key);
+        $fn         = strtolower($keyInfo['fn']);
+        $fnValue    = $keyInfo['value'];
+        $currentKey = $keyInfo['key'];
+
+        if($this->has($currentKey)){
+            if($fn && in_array(strtolower($fn),['parent','ntChild','first','last'])){
+                $item = $this->get($currentKey);
+                return ($item && $item->iterable() )
+                    ?call_user_func([$item,$fn],$fnValue)
+                    :null;
+            }
+
             if(
-                is_object($this->data[$key]) && 
-                (is_a($this->data[$key],static::class) || is_a($this->data[$key],Value::class))
+                is_object($this->data[$currentKey]) && 
+                (is_a($this->data[$currentKey],static::class) || is_a($this->data[$currentKey],Value::class))
                 ){
                 
-                return $this->data[$key];
+                return $this->data[$currentKey];
             }
             
-            $clsName = (is_iterable($this->data[$key]))
+            $clsName = (is_iterable($this->data[$currentKey]))
                 ?static::class
                 :Value::class;
             
-            return (new $clsName($this->data[$key],$this,$key));
+            return (new $clsName($this->data[$currentKey],$this,$currentKey));
         }
     }
+
+    /**
+     * parse a requested array key and evaluitate if is comprensive of pseudo selectors
+     *
+     * @param string $key
+     * @return array
+     */
+    protected function parseKey($key){
+        preg_match('#^(?<key>.+)(::(?P<pseudo_rule>(?P<fn>.+)\((?P<value>.*)\)))?$#U',$key,$info);
+        return [
+            'key'   =>$info['key'],
+            'fn'    =>(isset($info['fn']))?$info['fn']:false,
+            'value' =>(isset($info['value']))?$info['value']:null,
+        ];
+        
+    }
+
 
     /**
      * Returns the full data path , included current key 
@@ -124,52 +153,114 @@ class Walker{
         return implode($separator,$path);
     }
 
+
+    private function buildFullPaths(array $pathBits){
+        $arrayPaths = [];
+        $node       = $this;
+        $k          = 0;
+        $cntBits    = count($pathBits);
+
+        while($bit = array_shift($pathBits)){
+            $arrayPaths[$k] = [];
+            if($bit == '*'){
+                if(!$node || !$node->iterable()){
+                }
+                else{
+                    $arrayPaths[$k] = array_merge($arrayPaths[$k],$node->keys());
+                    $tmp = [];
+                    foreach($node->items() as $item){
+                        if($item->iterable()){
+                            $tmp = array_merge($tmp,$item->items());
+                        }
+                        else{
+                            $tmp = array_merge($tmp,[$item]);
+                        }
+                    }
+                    $node = lonfo($tmp);
+                }
+            }
+            else{
+                $arrayPaths[$k] = [$bit];
+                $node           = $node->get($bit);
+            }
+            $k++;
+        }
+    
+        $paths  = [];
+        foreach($arrayPaths as $k=>$arrayPath){
+            foreach($arrayPath as $pathItem){
+                if($k == 0){
+                    $paths[]=$pathItem;
+                }
+                else{
+                    foreach($paths as $path){
+                        $paths[] = $path.='/'.$pathItem;
+                    }
+                }
+            }
+        }
+    
+        foreach($paths as $i=>$path){
+            $cntPathPcs = explode('/',$path);
+            $cntPath    = count($cntPathPcs);
+
+            if($cntPath != $cntBits || $this->xfind($path) === null){
+                unset($paths[$i]);
+            }
+        }
+
+        return $paths;
+    }
+
+
     /**
      * Returns an item or null, based on its xpath relative to current element where search starts
      *
      * @param string $path
      * @param string $separator
-     * @return Walker|Value|null
+     * @return Walker
      */
     public function xfind(string $path,string $separator = '/'){
-        if(!$path){
+        if(!$path){ 
             return null;            
         }
-
-        $bits   = explode($separator,$path);
-        $item    = $this;
-
-        while(($bit = array_shift($bits)) !== null){
-            if($bit == '*'){
-                $empty = [];
-                $childs  = $item->items();
-                $tmp    = new static($empty,$item);
-                foreach($childs as $child){
-                    if($child->iterable()){
-                        $tmp->merge($child->value());
-                    }
-                    else{
-                        $tmp->append($child->value());
-                    }
-                }
-
-                $currentItem = $tmp;
-            }
-            else{
-                $currentItem = $item->get($bit);
-            } 
-            
-            if(count($bits) == 0){
-                return $currentItem;
-            }
-            elseif( $currentItem === null || !$currentItem->iterable() ){
-                return null;
-            }
-
-            $item = $currentItem;
+        elseif($path == '*'){
+            return $this->iterable()?$this:null;
         }
 
-        return null;
+        $bits = explode($separator,$path);
+        
+        if(in_array('*',$bits)){
+            $paths = $this->buildFullPaths($bits);
+            $results = [];
+
+            foreach($paths as $path){
+                $value = $this->xfind($path);
+
+                if(!is_null($value)){
+                    $results[] =$value;
+                }
+            }
+
+            return lonfo($results);
+        }
+        else{
+            $item = $this;
+            while(($bit = array_shift($bits)) !== null){
+                $currentItem = $item->get($bit);
+    
+                if(count($bits) == 0){
+                    return $currentItem;
+                }
+                elseif( $currentItem === null || !$currentItem->iterable() ){
+                    return null;
+                }
+    
+                $item = $currentItem;
+            }
+            
+            return null;
+        }
     }
 
     /**
@@ -234,6 +325,27 @@ class Walker{
     }
 
     /**
+     * Returns the primitive value, deeply converted
+     *
+     * @return void
+     */
+    public function primitiveValue(){
+        if($this->iterable()){
+            $output     = $this->data;
+            $clsName    = static::class;
+            array_walk_recursive($output,function(&$item) use ($clsName){
+                if(is_object($item) && get_class($item) == $clsName){
+                    $item = $item->primitiveValue();
+                }
+            });
+        
+            return $output;
+        }
+
+        return $this->data;
+    }
+
+    /**
      * Returns the parent node in the array
      *
      * @return Walker|null
@@ -249,7 +361,7 @@ class Walker{
      * @return boolean
      */
     public function has(string $key){
-        return in_array($key,$this->keys,true);
+        return in_array($key,$this->keys,false);
     }
 
     /**
@@ -394,8 +506,19 @@ class Walker{
      * @param mixed $value
      * @return self
      */
-    public function set($key,$value = null){
-        $this->data[(string)$key] = $value;
+    public function set($key,$value = null,string $separator = '/'){
+        $bits = explode($separator,(string)$key);
+
+        $currentNode = &$this->data;
+        while($bit = array_shift($bits)){
+            if(!$bits){
+                $currentNode[$bit] = $value;
+            }
+            else{
+                $currentNode[$bit] = [];
+            }
+            $currentNode = &$currentNode[$bit];
+        }
 
         $this->reload($this->data);
 

@@ -90,7 +90,6 @@ class Value{
     public function xpath(string $separator = '/'){
         $path    = ($this->key() !== null)?[$this->key()]:[];
         $current = $this;
-        var_dump($current->value());
         while($parent = $current->parent()){
             if($parent->key() !== null){
                 array_unshift($path,$parent->key());
