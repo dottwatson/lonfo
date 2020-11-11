@@ -160,7 +160,7 @@ class Walker{
      * @param string $separator
      * @return array
      */
-    private function buildFullPaths(array $pathBits,$separator = '/'){
+    private function buildFullPaths(array $pathBits,string $separator = '/'){
         $arrayPaths = [];
         $node       = $this;
         $k          = 0;
@@ -210,7 +210,7 @@ class Walker{
             $cntPathPcs = explode($separator,$path);
             $cntPath    = count($cntPathPcs);
 
-            if($cntPath != $cntBits || $this->xfind($path) === null){
+            if($cntPath != $cntBits || $this->xfind($path,$separator) === null){
                 unset($paths[$i]);
             }
         }
@@ -235,9 +235,9 @@ class Walker{
         }
 
         $bits = explode($separator,$path);
-        
+
         if(in_array('*',$bits)){
-            $paths = $this->buildFullPaths($bits);
+            $paths = $this->buildFullPaths($bits,$separator);
             $results = [];
 
             foreach($paths as $path){
@@ -339,8 +339,12 @@ class Walker{
         if($this->iterable()){
             $output     = $this->data;
             $clsName    = static::class;
-            array_walk_recursive($output,function(&$item) use ($clsName){
+            $clsValue   = Value::class;
+            array_walk_recursive($output,function(&$item) use ($clsName,$clsValue){
                 if(is_object($item) && get_class($item) == $clsName){
+                    $item = $item->primitiveValue();
+                }
+                elseif(is_object($item) && get_class($item) == $clsValue){
                     $item = $item->primitiveValue();
                 }
             });

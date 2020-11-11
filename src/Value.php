@@ -54,6 +54,11 @@ class Value{
         return $this->item;
     }
 
+    public function primitiveValue(){
+        return $this->item;
+    }
+
+
     /**
      * Returns current item value
      *
