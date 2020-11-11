@@ -154,7 +154,7 @@ class Walker{
     }
 
     /**
-     * Built full paths for collection result
+     * Build full paths for collection result
      *
      * @param array $pathBits
      * @param string $separator

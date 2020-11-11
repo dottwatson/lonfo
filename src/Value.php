@@ -54,10 +54,14 @@ class Value{
         return $this->item;
     }
 
+    /**
+     * Alias of value
+     *
+     * @return mixed
+     */
     public function primitiveValue(){
         return $this->item;
     }
-
 
     /**
      * Returns current item value
