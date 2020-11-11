@@ -153,8 +153,14 @@ class Walker{
         return implode($separator,$path);
     }
 
-
-    private function buildFullPaths(array $pathBits){
+    /**
+     * Built full paths for collection result
+     *
+     * @param array $pathBits
+     * @param string $separator
+     * @return array
+     */
+    private function buildFullPaths(array $pathBits,$separator = '/'){
         $arrayPaths = [];
         $node       = $this;
         $k          = 0;
@@ -194,14 +200,14 @@ class Walker{
                 }
                 else{
                     foreach($paths as $path){
-                        $paths[] = $path.='/'.$pathItem;
+                        $paths[] = $path.=$separator.$pathItem;
                     }
                 }
             }
         }
     
         foreach($paths as $i=>$path){
-            $cntPathPcs = explode('/',$path);
+            $cntPathPcs = explode($separator,$path);
             $cntPath    = count($cntPathPcs);
 
             if($cntPath != $cntBits || $this->xfind($path) === null){
@@ -235,7 +241,7 @@ class Walker{
             $results = [];
 
             foreach($paths as $path){
-                $value = $this->xfind($path);
+                $value = $this->xfind($path,$separator);
 
                 if(!is_null($value)){
                     $results[] =$value;
