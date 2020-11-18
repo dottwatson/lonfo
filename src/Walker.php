@@ -93,8 +93,32 @@ class Walker{
         $fnValue    = $keyInfo['value'];
         $currentKey = $keyInfo['key'];
 
+        if($currentKey == ''){
+            if(!$fn){
+                return $this;
+            }
+        
+            switch($fn){
+                case 'parent':
+                    return $this->parent();
+                break;
+                case 'ntChild':
+                    return $this->nthChild($fnValue);
+                break;
+                case 'first':
+                    return $this->first();
+                break;
+                case 'last':
+                    return $this->last();
+                break;
+                case 'closest':
+                    return $this->closest($fnValue);
+                break;
+            }
+        }
+
         if($this->has($currentKey)){
-            if($fn && in_array(strtolower($fn),['parent','ntChild','first','last'])){
+            if($fn && in_array(strtolower($fn),['parent','ntChild','first','last','closest'])){
                 $item = $this->get($currentKey);
                 return ($item && $item->iterable() )
                     ?call_user_func([$item,$fn],$fnValue)
@@ -124,7 +148,7 @@ class Walker{
      * @return array
      */
     protected function parseKey($key){
-        preg_match('#^(?<key>.+)(::(?P<pseudo_rule>(?P<fn>.+)\((?P<value>.*)\)))?$#U',$key,$info);
+        preg_match('#^(?<key>.*)?(::(?P<pseudo_rule>(?P<fn>.+)\((?P<value>.*)\)))?$#U',$key,$info);
         return [
             'key'   =>$info['key'],
             'fn'    =>(isset($info['fn']))?$info['fn']:false,
@@ -193,25 +217,21 @@ class Walker{
         }
     
         $paths  = [];
-        foreach($arrayPaths as $k=>$arrayPath){
-            foreach($arrayPath as $pathItem){
-                if($k == 0){
-                    $paths[]=$pathItem;
-                }
-                else{
-                    foreach($paths as $path){
-                        $paths[] = $path.=$separator.$pathItem;
+        // var_dump($arrayPaths);
+
+        foreach($arrayPaths as $i=>$arrayPath){
+            if($i == 0){
+                $paths = $arrayPath;
+            }
+            else{
+                $tmp = [];
+                foreach($arrayPaths[$i]  as $nextArrayItem){
+                    foreach($paths as $k=>$pathItem){
+                        $newItem = $pathItem.$separator.$nextArrayItem;
+                        $tmp[] = $newItem;
                     }
                 }
-            }
-        }
-    
-        foreach($paths as $i=>$path){
-            $cntPathPcs = explode($separator,$path);
-            $cntPath    = count($cntPathPcs);
-
-            if($cntPath != $cntBits || $this->xfind($path,$separator) === null){
-                unset($paths[$i]);
+                $paths = $tmp;
             }
         }
 
@@ -362,6 +382,24 @@ class Walker{
      */
     public function parent(){
         return $this->parent;
+    }
+
+    /**
+     * Returns the first matching parent with key is matching with given key
+     *
+     * @param string|int $keyName
+     * @return Waker|null
+     */
+    public function closest($keyName){
+        $currentItem = $this;
+        while($parent = $currentItem->parent()){
+            if($parent->key() == $keyName){
+                return $parent;
+            }
+            $currentItem = $parent;
+        }
+    
+        return null;
     }
 
     /**
