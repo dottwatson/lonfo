@@ -274,7 +274,7 @@ class Walker{
             $item = $this;
             while(($bit = array_shift($bits)) !== null){
                 $currentItem = $item->get($bit);
-    
+
                 if(count($bits) == 0){
                     return $currentItem;
                 }
